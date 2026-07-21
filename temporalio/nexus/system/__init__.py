@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any
+
 import temporalio.api.common.v1
+import temporalio.common
 import temporalio.converter
 from temporalio.bridge._visitor_functions import VisitorFunctions
 from temporalio.converter import BinaryProtoPayloadConverter, CompositePayloadConverter
 
 TEMPORAL_SYSTEM_ENDPOINT = "__temporal_system"
+_SYSTEM_PAYLOAD_METADATA_KEY = "__temporal_system_payload"
+_SYSTEM_PAYLOAD_METADATA_VALUE = b"true"
 
 
 class SystemNexusPayloadConverter(CompositePayloadConverter):
@@ -17,20 +23,39 @@ class SystemNexusPayloadConverter(CompositePayloadConverter):
         """Create a payload converter for system Nexus outer envelopes."""
         super().__init__(BinaryProtoPayloadConverter())
 
+    def to_payloads(
+        self, values: Sequence[Any]
+    ) -> list[temporalio.api.common.v1.Payload]:
+        """See base class."""
+        payloads = super().to_payloads(values)
+        for value, payload in zip(values, payloads):
+            if isinstance(value, temporalio.common.RawValue):
+                continue
+            payload.metadata[_SYSTEM_PAYLOAD_METADATA_KEY] = (
+                _SYSTEM_PAYLOAD_METADATA_VALUE
+            )
+        return payloads
+
 
 def is_system_endpoint(endpoint: str) -> bool:
     """Return whether a Nexus endpoint is the Temporal system endpoint."""
     return endpoint == TEMPORAL_SYSTEM_ENDPOINT
 
 
+def _is_system_payload(payload: temporalio.api.common.v1.Payload) -> bool:
+    return (
+        payload.metadata.get(_SYSTEM_PAYLOAD_METADATA_KEY)
+        == _SYSTEM_PAYLOAD_METADATA_VALUE
+    )
+
+
 async def maybe_visit_payload(
-    endpoint: str,
     payload: temporalio.api.common.v1.Payload,
     visitor_functions: VisitorFunctions,
     skip_search_attributes: bool,
 ) -> temporalio.api.common.v1.Payload | None:
-    """Visit nested payloads if the payload is for the Temporal system endpoint."""
-    if not is_system_endpoint(endpoint):
+    """Visit nested payloads if the payload is a Temporal system Nexus envelope."""
+    if not _is_system_payload(payload):
         return None
 
     payload_converter = get_payload_converter()
