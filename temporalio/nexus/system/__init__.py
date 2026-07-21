@@ -47,7 +47,7 @@ class _SystemNexusOuterPayloadConverter(CompositePayloadConverter):
         super().__init__(BinaryProtoPayloadConverter())
 
 
-class SystemNexusPayloadConverter(temporalio.converter.PayloadConverter):
+class _SystemNexusPayloadConverter(temporalio.converter.PayloadConverter):
     """Payload converter for system Nexus outer envelopes."""
 
     _user_payload_converter: temporalio.converter.PayloadConverter
@@ -108,7 +108,7 @@ def get_payload_converter(
     user_payload_converter: temporalio.converter.PayloadConverter,
 ) -> temporalio.converter.PayloadConverter:
     """Return the fixed payload converter for system Nexus outer envelopes."""
-    return SystemNexusPayloadConverter(user_payload_converter)
+    return _SystemNexusPayloadConverter(user_payload_converter)
 
 
 __all__ = [
@@ -116,5 +116,4 @@ __all__ = [
     "get_payload_converter",
     "is_system_endpoint",
     "maybe_visit_payload",
-    "SystemNexusPayloadConverter",
 ]
